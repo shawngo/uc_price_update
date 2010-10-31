@@ -1,0 +1,5 @@
+; $Id$
+name = Ubercart Price Updates by Multiplier
+description = Modify Ubercart prices using a multiplier
+core = 6.x
+package = Ubercart Mods
