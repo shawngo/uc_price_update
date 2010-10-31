@@ -1,5 +1,7 @@
 ; $Id$
-name = Ubercart Price Updates by Multiplier
-description = Modify Ubercart prices using a multiplier
+name = UC Price Update
+description = Modify Ubercart prices using a percent multiplier
 core = 6.x
 package = Ubercart Mods
+
+dependencies[] = uc_product

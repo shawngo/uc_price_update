@@ -4,8 +4,6 @@
  * Makes changes to Ubercart prices using a Multiplier; all holds barred!
  */
 
-define('UC_PRICE_UPDATE_DEBUGGING', FALSE);
-
 /**
  * Implementation of hook_menu().
  */
@@ -31,7 +29,7 @@ function uc_price_update_perm() {
 
 // create a form
 function uc_price_update_form_page() {
-  drupal_set_title('UC price updates');
+  drupal_set_title(t('UC price updates'));
 
   $output = t('This form allows you to alter all prices for a given product type by a multiplier. It also allows you to test your multipliers prior to making massive pricing udpates.');
   // Return the HTML generated from the $form data structure.
@@ -48,43 +46,22 @@ function uc_price_update_form($form_state) {
   $uc_product_type_names = uc_product_type_names();
   $price_types = array('cost', 'sell_price', 'list_price');
 
-  $form['test_price_fs'] = array(
-    '#title' => 'Test cost multiplier',
-    '#type' => 'fieldset',
-    '#description' => 'Used to test the calculations. No prices will be <del>harmed</del> affected if this field contains a value.',
-  );
-  $form['test_price_fs']['test_price'] = array(
-    '#title' => 'Test cost',
-    '#type' => 'textfield',
-    '#size' => 30,
-    '#description' => t('This is a test cost that will be used for each of the multipliers. If a test cost is entered, no price adjustments will be made. A results list will be generated with mock calculations.'),
-    '#default_value' => $form_state['post']['test_price'],
-  );
-
-  $form['uc_product_type_names'] = array(
-    '#title' => t('Product types'),
-    '#type' => 'fieldset',
-    '#description' => '
-      <p>Enter the price multiplier for each type of product you wish to alter.</p>
-      <p>Leaving a field blank skips that price adjustment.</p>',
-  );
-
-  $form['uc_product_type_names']['instructions'] = array(
+  $form['instructions'] = array(
       '#title' => t('Instructions'),
       '#type' => 'fieldset',
       '#description' =>
        '<p><strong>Note:</strong> to make the calculation we do the following: </p>
         <ul>
-          <li>The Cost is calculated like so:
+          <li>The Cost field and all Normal Calculations are calculated like so:
             <ul>
-              <li>cost is simply multiplied by the cost multiplier</li>
+              <li>the new price is simply multiplied by the cost multiplier</li>
             </ul>
           </li>
-          <li>The Sell Price and List prices are calculated like so:
+          <li>Fancy Calculations (for Sell Price and List Price) are calculated like so:
             <ul>
-              <li>multiply the cost by the multiplier (1.5 * 225.33 = 337.995, 1.7 * 225.33 = 383.061)</li>
-              <li>round up to the nearest ten (340, 390)</li>
-              <li>subtract one (339, 389)</li>
+              <li>multiply the cost by the multiplier (eg. 1.5 * 225.33 = 337.995, 1.7 * 225.33 = 383.061)</li>
+              <li>round up to the nearest ten (eg. 340, 390)</li>
+              <li>subtract one (eg. 339, 389)</li>
             </ul>
           </li>
           <li><strong>Important!</strong>
@@ -97,6 +74,47 @@ function uc_price_update_form($form_state) {
       '#collapsed' => TRUE,
   );
 
+  $form['test_price_fs'] = array(
+    '#title' => 'Test cost multiplier',
+    '#type' => 'fieldset',
+    '#description' => 'Used to test the calculations. No prices will be <del>harmed</del> affected if this field contains a value.',
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['test_price_fs']['test_price'] = array(
+    '#title' => 'Test cost',
+    '#type' => 'textfield',
+    '#size' => 30,
+    '#description' => t('This is a test cost that will be used for each of the multipliers. If a test cost is entered, no price adjustments will be made. A results list will be generated with mock calculations.'),
+    '#default_value' => $form_state['post']['test_price'],
+  );
+
+  $form['options'] = array(
+    '#title' => 'Price update options',
+    '#type' => 'fieldset',
+    '#description' => 'Price update options',
+  );
+  $form['options']['calculation_options'] = array(
+    '#title' => 'Calculation options',
+    '#type' => 'radios',
+    '#size' => 30,
+    '#description' => t('This is a test cost that will be used for each of the multipliers. If a test cost is entered, no price adjustments will be made. A results list will be generated with mock calculations.'),
+    '#default_value' => 'normal',
+    '#options' => array(
+       'normal' => 'Normal',
+       'fancy'  => 'Fancy: round up to nearest 10 and subtract 1 (creating a $344 =&gt; $349 effect)'
+    ),
+  );
+
+
+  $form['uc_product_type_names'] = array(
+    '#title' => t('Product types'),
+    '#type' => 'fieldset',
+    '#description' => '
+      <p>Enter the price multiplier for each type of product you wish to alter.</p>
+      <p>Leaving a field blank skips that price adjustment.</p>',
+  );
+
   // we're not supporting this yet @TODO
   unset($uc_product_type_names['product_kit']);
 
@@ -105,7 +123,6 @@ function uc_price_update_form($form_state) {
     $form['uc_product_type_names'][$keyname .'_fs'] = array(
       '#title' => t($typename),
       '#type' => 'fieldset',
-      '#size' => 10,
       '#description' => t('Enter the price multiplier as a number only: (eg. enter 1.7 for 70% increase, .7 for a 30% decrease). Leaving this field blank will not modify the price.'),
       '#collapsible' => TRUE,
       '#collapsed' => $collapsible,
@@ -116,7 +133,7 @@ function uc_price_update_form($form_state) {
       $form['uc_product_type_names'][$keyname .'_fs'][$keyname .'_'. $price_type] = array(
         '#title' => t($typename .' '. $price_type_label),
         '#type' => 'textfield',
-        '#size' => 10,
+        '#size' => 30,
         '#description' => t('This field will update the '. $price_type_label .' for all '. $typename .' types.'),
         '#default_value' => $form_state['post'][$keyname .'_'. $price_type] != '' ? intval($form_state['post'][$keyname .'_'. $price_type]) : '',
       );
@@ -144,51 +161,54 @@ function uc_price_update_form_validate($form, &$form_state) {
   // if test_price has values, we're only testing. set errors to avoid passing
   // through form submit logic (ie updating prices) and keep the fieldsets open.
   // Calculate new prices based on test price and display results
-  if ($form_state['values']['test_price'] != '') {
+  if ($form_state['values']['test_price'] != '' && is_numeric($form_state['values']['test_price'])) {
     form_set_error('test_price', 'Testing Price Changes: No price values have been altered');
-
-    if (UC_PRICE_UPDATE_DEBUGGING) dpm(array('HERE', 'form_state' => $form_state));
 
     // do some calcs
     $price = $form_state['values']['test_price'];
+    $calc_option = $form_state['values']['calculation_options'];
+
+    // test calculation reports string
     $prices = '';
 
     // for each product type, go through its multipliers
     foreach ($uc_product_type_names as $typename => $realname) {
+      // for every price type, perform test calculations
       foreach ($price_types as $price_type) {
-        $multiplier = $form_state['values'][$typename .'_'. $price_type];
-        if ($multiplier != '') {
-          // keep fieldsets open and highlight test multipliers
-          form_set_error($typename .'_'. $price_type, 'Testing Price Multiplier' . $typename .' '. $price_type);
 
-          $sell_price = $price * $multiplier;
-          if (UC_PRICE_UPDATE_DEBUGGING) dpm(array('sell_price' => $sell_price));
+        $multiplier = $form_state['values'][$typename .'_'. $price_type];
+
+        if ($multiplier != '') {
+
+          // keep fieldsets open and highlight test multipliers by erroring out
+          form_set_error($typename .'_'. $price_type, 'Testing Price Multiplier ' . $typename .' '. $price_type);
+
+          $calculated_price = $price * $multiplier;
 
           // do test calculation
-          if ($price_type == 'cost') {
-            $sell_pricex = number_format($sell_price, 2);
+          if ($price_type == 'cost' || $calc_option == 'normal') {
+            $new_price = number_format($calculated_price, 2);
           }
           else {
-
-            $sell_pricex = ceil($sell_price / 10) * 10;
-            if ($sell_price % 10 == 0) {
-              $sell_pricex = $sell_pricex + 9;
+            $new_price = ceil($calculated_price / 10) * 10;
+            if ($calculated_price % 10 == 0) {
+              $new_price = $new_price + 9;
               $calc_str = ' + 9';
             }
             else {
-              $sell_pricex = $sell_pricex - 1;
+              $new_price = $new_price - 1;
               $calc_str = ' - 1';
             }
           }
 
           // print out results
           $prices .= '<p><strong>'. ucwords($typename .' '. str_replace('_', ' ', $price_type)) .':</strong>
-                         Price $'. $price .' is now $'. $sell_pricex .': ROUND('. $price .' * '. $multiplier .') '. $calc_str .' </p>';
+                         Price $'. $price .' is now $'. $new_price .': ROUND('. $price .' * '. $multiplier .') '. $calc_str .' </p>';
         }
       }
     }
 
-    drupal_set_message('<h3>Results of Test Cost Calculations:</h3>'. $prices);
+    drupal_set_message(t('<h3>Results of Test Cost Calculations:</h3>') . $prices);
   }
 
   // iterate through product types
@@ -215,7 +235,7 @@ function uc_price_update_form_validate($form, &$form_state) {
   }
 
   if (!empty($form_errors)) {
-    drupal_set_message('Prices have not been updated. Please fix the form errors and try again.', 'error');
+    drupal_set_message(t('Prices have not been updated. Please fix the form errors and try again.'), 'error');
     foreach ($form_errors as $error_data) {
       form_set_error($error_data['name'], $error_data['message']);
     }
@@ -232,12 +252,12 @@ function uc_price_update_form_validate($form, &$form_state) {
  */
 function uc_price_update_form_submit($form, &$form_state) {
 
-  if (UC_PRICE_UPDATE_DEBUGGING) dpm(array('SUBMIT', 'form' => $form, 'form_state' => $form_state));
-
   // if flag is set and we have product type price multipliers, update some prices!
   if ($form_state['uc_price_update_multiplier_exists'] === TRUE && !empty($form_state['uc_price_update_multipliers'])) {
     // for each product type, go through its multipliers
     $report = '<h2>Price Update Report</h2>';
+    // normal or fancy calculations
+    $calc_option = $form_state['values']['calculation_options'];
 
     foreach ($form_state['uc_price_update_multipliers'] as $content_type => $ct_multiplier) {
       // product => array
@@ -246,13 +266,15 @@ function uc_price_update_form_submit($form, &$form_state) {
       foreach ($ct_multiplier as $price_type => $multiplier) {
         // if we're calculating the cost, don't round up and subtract one
         $price_type = check_plain($price_type);
-        if ($price_type == 'cost') {
-          $calculation = 'cost * %d';
+
+        if ($price_type == 'cost' || $calc_option == 'normal') {
+          $calculation = 'cost * %f';
         }
         else {
           // we're not calculating the cost, round up and subtract one
           $calculation = 'TRUNCATE(CEILING(cost * %f), -1) + 9';
         }
+
         $sql = "UPDATE {uc_products}
                 SET %s = ". $calculation ."
                 WHERE cost > 1
@@ -260,8 +282,8 @@ function uc_price_update_form_submit($form, &$form_state) {
                   SELECT {node}.vid FROM node WHERE {node}.type IN ('%s')
                 )";
         $r = db_query($sql, $price_type, $multiplier, $content_type);
-        $affected_rows = db_affected_rows();
 
+        $affected_rows = db_affected_rows();
         $report .= '<li>'. ucwords(str_replace('_', ' ', $price_type)) .' updated by a multiple of '. $multiplier .'. Affected Rows: '. $affected_rows .'.</li>';
       }
     }
