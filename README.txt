@@ -1,4 +1,4 @@
-; $Id$
+$Id$
 
 UC Price Update
 ------------

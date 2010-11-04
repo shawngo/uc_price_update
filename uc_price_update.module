@@ -1,4 +1,6 @@
 <?php
+// $Id$
+
 /**
  * @file
  * Makes changes to Ubercart prices using a Multiplier; all holds barred!
